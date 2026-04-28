@@ -68,28 +68,35 @@ function pathCost(candidateIdx, truth, cells) {
 }
 
 function bestPick(cells, p, nSims) {
-  const candidates = []
-  for (let i = 0; i < TOTAL; i++) {
-    if (cells[i] === 'unknown') candidates.push(i)
-  }
-  if (candidates.length === 0) return null
-
   const enriched = LINES.map(l => ({ ...l, ...lineStatus(l, cells) }))
   if (enriched.some(l => l.complete)) return null
   if (enriched.every(l => !l.alive)) return null
 
+  const aliveLineCells = new Set()
+  for (const l of enriched) {
+    if (l.alive) for (const idx of l.cells) aliveLineCells.add(idx)
+  }
+
+  const candidates = []
+  for (let i = 0; i < TOTAL; i++) {
+    if (cells[i] === 'unknown' && aliveLineCells.has(i)) candidates.push(i)
+  }
+  if (candidates.length === 0) return null
+
+  const truths = Array.from({ length: nSims }, () => {
+    const t = new Array(TOTAL)
+    for (let i = 0; i < TOTAL; i++) {
+      if (cells[i] === 'unknown') t[i] = Math.random() < p ? 'hit' : 'miss'
+    }
+    return t
+  })
+
   let best = null
-  const truth = new Array(TOTAL)
 
   for (const c of candidates) {
     let total = 0
     for (let s = 0; s < nSims; s++) {
-      for (let i = 0; i < TOTAL; i++) {
-        if (cells[i] === 'unknown') {
-          truth[i] = Math.random() < p ? 'hit' : 'miss'
-        }
-      }
-      total += pathCost(c, truth, cells)
+      total += pathCost(c, truths[s], cells)
     }
     const expectedCost = total / nSims
 
